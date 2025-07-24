@@ -1,7 +1,10 @@
+// src/App.tsx
+
 import { useEffect, useRef, useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
-import { ChevronDown } from "lucide-react"; // Icon
+import type {DataTablePageEvent} from "primereact/datatable";
+import { ChevronDown } from "lucide-react";
 import axios from "axios";
 import "./App.css";
 
@@ -17,7 +20,6 @@ type Artwork = {
 
 function App() {
   const [artworks, setArtworks] = useState<Artwork[]>([]);
-  const [selectedArtworks, setSelectedArtworks] = useState<Record<string, Artwork>>({});
   const [totalRecords, setTotalRecords] = useState(0);
   const [page, setPage] = useState(0);
   const [rows, setRows] = useState(5);
@@ -35,7 +37,9 @@ function App() {
   const fetchData = async (page: number, size: number) => {
     setLoading(true);
     try {
-      const response = await axios.get(`https://api.artic.edu/api/v1/artworks?page=${page + 1}&limit=${size}`);
+      const response = await axios.get(
+        `https://api.artic.edu/api/v1/artworks?page=${page + 1}&limit=${size}`
+      );
       const { data, pagination } = response.data;
 
       const artworks: Artwork[] = data.map((item: any) => ({
@@ -57,55 +61,62 @@ function App() {
     }
   };
 
-  const onPageChange = (e: { first: number; rows: number; page: number }) => {
-    setPage(e.page);
-    setRows(e.rows);
+  const onPageChange = (e: DataTablePageEvent) => {
+    setPage(e.page ?? 0);
+    setRows(e.rows ?? 5);
   };
 
   const handleSelectNRows = async () => {
-  let collected: Artwork[] = [];
-  let currentPage = page + 1; // 1-based API
-  const size = rows;
+    let collected: Artwork[] = [];
+    let currentPage = page + 1;
+    const size = rows;
 
-  while (collected.length < selectCount) {
-    const response = await axios.get(`https://api.artic.edu/api/v1/artworks?page=${currentPage}&limit=${size}`);
-    const pageData: Artwork[] = response.data.data.map((item: any) => ({
-      id: item.id,
-      title: item.title,
-      place_of_origin: item.place_of_origin,
-      artist_display: item.artist_display,
-      inscriptions: item.inscriptions,
-      date_start: item.date_start,
-      date_end: item.date_end,
-    }));
+    while (collected.length < selectCount) {
+      const response = await axios.get(
+        `https://api.artic.edu/api/v1/artworks?page=${currentPage}&limit=${size}`
+      );
+      const pageData: Artwork[] = response.data.data.map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        place_of_origin: item.place_of_origin,
+        artist_display: item.artist_display,
+        inscriptions: item.inscriptions,
+        date_start: item.date_start,
+        date_end: item.date_end,
+      }));
 
-    collected = [...collected, ...pageData];
+      collected = [...collected, ...pageData];
+      if (pageData.length < size) break;
+      currentPage++;
+    }
 
-    // Stop if API has no more data
-    if (pageData.length < size) break;
+    setSelection(collected.slice(0, selectCount));
+    setDropdownVisible(false);
+  };
 
-    currentPage++;
-  }
-
-  // Trim to exact number requested
-  setSelection(collected.slice(0, selectCount));
-  setDropdownVisible(false);
-};
-
-
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setDropdownVisible(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () =>
+      document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const titleHeader = (
-    <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", position: "relative" }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "0.3rem",
+        position: "relative",
+      }}
+    >
       Title
       <span
         onClick={() => setDropdownVisible(!dropdownVisible)}
@@ -158,8 +169,11 @@ function App() {
         loading={loading}
         onPage={onPageChange}
         dataKey="id"
+        selectionMode="multiple"
         selection={selection}
-        onSelectionChange={(e: any) => setSelection(e.value)}
+        onSelectionChange={(e) => setSelection(e.value as Artwork[])
+
+        }
       >
         <Column selectionMode="multiple" headerStyle={{ width: "3rem" }} />
         <Column field="title" header={titleHeader} />
